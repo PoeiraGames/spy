@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Compartilhamento de Tela - WebRTC</title>
-  <!-- Incluindo o Firebase via CDN com suporte a módulos ES -->
   <script type="module">
-    // O Firebase SDK usa importação de módulos agora
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
     import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
     import { getAuth } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
@@ -158,8 +156,9 @@
         });
     }
 
+    // Usando onValue em vez de on() para Firebase 9+
     const offerRef = ref(database, 'offer');
-    offerRef.on('value', (snapshot) => {
+    onValue(offerRef, (snapshot) => {
       const offerData = snapshot.val();
       if (offerData) {
         handleOffer(offerData);
@@ -167,7 +166,7 @@
     });
 
     const answerRef = ref(database, 'answer');
-    answerRef.on('value', (snapshot) => {
+    onValue(answerRef, (snapshot) => {
       const answerData = snapshot.val();
       if (answerData) {
         handleAnswer(answerData);
