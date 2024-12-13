@@ -4,226 +4,197 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Compartilhamento de Tela - WebRTC</title>
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-    import { getDatabase, ref, set, onValue, onChildAdded, push } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
-    import { getAuth } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+  import { getDatabase, ref, set, onValue, onChildAdded, push } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
+  import { getAuth } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
 
-    // Configuração do Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
-      authDomain: "sandalias-retro-9f0c6.firebaseapp.com",
-      databaseURL: "https://sandalias-retro-9f0c6-default-rtdb.firebaseio.com",
-      projectId: "sandalias-retro-9f0c6",
-      storageBucket: "sandalias-retro-9f0c6.appspot.com",
-      messagingSenderId: "786208752798",
-      appId: "1:786208752798:web:193f76bbbf5ac4ef27678f",
-      measurementId: "G-XGVHLX01EB"
+  // Configuração do Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
+    authDomain: "sandalias-retro-9f0c6.firebaseapp.com",
+    databaseURL: "https://sandalias-retro-9f0c6-default-rtdb.firebaseio.com",
+    projectId: "sandalias-retro-9f0c6",
+    storageBucket: "sandalias-retro-9f0c6.appspot.com",
+    messagingSenderId: "786208752798",
+    appId: "1:786208752798:web:193f76bbbf5ac4ef27678f",
+    measurementId: "G-XGVHLX01EB"
+  };
+
+  // Inicializando Firebase
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+  const auth = getAuth(app);
+
+  let localStream = null;
+  let peerConnection = null;
+  const iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+  const localVideo = document.getElementById('localVideo');
+  const remoteVideo = document.getElementById('remoteVideo');
+
+  // Função para capturar a tela
+  async function captureScreen() {
+    try {
+      localStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      localVideo.srcObject = localStream;
+
+      if (!peerConnection) {
+        createPeerConnection();
+      }
+
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      const offerData = {
+        sdp: offer.sdp,
+        type: offer.type
+      };
+
+      set(ref(database, 'offer'), offerData);
+    } catch (error) {
+      console.error("Erro ao capturar a tela: ", error);
+    }
+  }
+
+  // Função para criar a peer connection
+  function createPeerConnection() {
+    if (peerConnection) {
+      console.log("peerConnection já foi criada.");
+      return;
+    }
+
+    peerConnection = new RTCPeerConnection({ iceServers });
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendIceCandidate(event.candidate);
+      }
     };
 
-    // Inicializando Firebase
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
-    const auth = getAuth(app);
+    peerConnection.ontrack = (event) => {
+      remoteVideo.srcObject = event.streams[0];
+    };
 
-    let localStream = null;
-    let peerConnection = null;
-    const iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
-    const localVideo = document.getElementById('localVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
+    console.log("peerConnection criada com sucesso.");
+  }
 
-    // Função para capturar a tela
-    async function captureScreen() {
-      try {
-        localStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        localVideo.srcObject = localStream;
+  // Função para enviar os candidatos ICE
+  function sendIceCandidate(candidate) {
+    const iceCandidatesRef = ref(database, 'iceCandidates');
+    push(iceCandidatesRef, candidate)
+      .then(() => {
+        console.log("Candidato ICE enviado com sucesso!");
+      })
+      .catch(err => {
+        console.error("Erro ao enviar candidato ICE: ", err);
+      });
+  }
 
-        if (!peerConnection) {
-          createPeerConnection();
-        }
+  // Função para lidar com a resposta do peer
+  function handleAnswer(data) {
+    if (!peerConnection) {
+      console.error("peerConnection não foi inicializada corretamente.");
+      return;
+    }
 
-        localStream.getTracks().forEach(track => {
-          peerConnection.addTrack(track, localStream);
-        });
+    console.log("Recebendo resposta: ", data);
 
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
+    // Verifique se a descrição remota já foi configurada
+    if (peerConnection.signalingState !== "have-remote-offer") {
+      console.error("Não é possível configurar a resposta, pois o estado da sinalização está errado:", peerConnection.signalingState);
+      return;
+    }
 
-        const offerData = {
-          sdp: offer.sdp,
-          type: offer.type
+    const answer = new RTCSessionDescription({
+      type: 'answer',
+      sdp: data.sdp
+    });
+
+    console.log("Configurando a descrição remota com o SDP:", answer.sdp);
+
+    peerConnection.setRemoteDescription(answer)
+      .then(() => {
+        console.log("Resposta configurada com sucesso.");
+      })
+      .catch(err => {
+        console.error("Erro ao configurar a resposta:", err);
+      });
+  }
+
+  // Função para lidar com a oferta do peer
+  function handleOffer(data) {
+    if (!peerConnection) {
+      createPeerConnection();
+    }
+
+    const offer = new RTCSessionDescription({
+      type: 'offer',
+      sdp: data.sdp
+    });
+
+    // Antes de configurar a oferta, verifique o estado de sinalização
+    if (peerConnection.signalingState !== "stable") {
+      console.error("O estado da sinalização não está 'stable', está: ", peerConnection.signalingState);
+      return;
+    }
+
+    peerConnection.setRemoteDescription(offer)
+      .then(() => {
+        // Crie a resposta (answer) apenas após a oferta ser configurada corretamente
+        return peerConnection.createAnswer();
+      })
+      .then(answer => {
+        return peerConnection.setLocalDescription(answer);
+      })
+      .then(() => {
+        const answerData = {
+          sdp: peerConnection.localDescription.sdp,
+          type: peerConnection.localDescription.type
         };
 
-        set(ref(database, 'offer'), offerData);
-      } catch (error) {
-        console.error("Erro ao capturar a tela: ", error);
-      }
-    }
-
-    // Função para criar a peer connection
-    function createPeerConnection() {
-      if (peerConnection) {
-        console.log("peerConnection já foi criada.");
-        return;
-      }
-
-      peerConnection = new RTCPeerConnection({ iceServers });
-
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          sendIceCandidate(event.candidate);
-        }
-      };
-
-      peerConnection.ontrack = (event) => {
-        remoteVideo.srcObject = event.streams[0];
-      };
-
-      console.log("peerConnection criada com sucesso.");
-    }
-
-    // Função para enviar os candidatos ICE
-    function sendIceCandidate(candidate) {
-      const iceCandidatesRef = ref(database, 'iceCandidates');
-      // Verificando se a referência para 'iceCandidates' é válida para push
-      push(iceCandidatesRef, candidate)
-        .then(() => {
-          console.log("Candidato ICE enviado com sucesso!");
-        })
-        .catch(err => {
-          console.error("Erro ao enviar candidato ICE: ", err);
-        });
-    }
-
-    // Função para lidar com a resposta do peer
-function handleAnswer(data) {
-  if (!peerConnection) {
-    console.error("peerConnection não foi inicializada corretamente.");
-    return;
+        // Envie a resposta de volta para o outro peer
+        set(ref(database, 'answer'), answerData);
+      })
+      .catch(err => {
+        console.error("Erro ao lidar com a oferta:", err);
+      });
   }
 
-  console.log("Recebendo resposta: ", data);
-
-  // Verifique se a descrição remota já foi configurada
-  if (peerConnection.signalingState !== "have-remote-offer") {
-    console.error("Não é possível configurar a resposta, pois o estado da sinalização está errado:", peerConnection.signalingState);
-    return;
-  }
-
-  const answer = new RTCSessionDescription({
-    type: 'answer',
-    sdp: data.sdp
+  // Usando onValue() para escutar dados no Firebase
+  const offerRef = ref(database, 'offer');
+  onValue(offerRef, (snapshot) => {
+    const offerData = snapshot.val();
+    if (offerData) {
+      handleOffer(offerData);
+    }
   });
 
-  console.log("Configurando a descrição remota com o SDP:", answer.sdp);
-
-  peerConnection.setRemoteDescription(answer)
-    .then(() => {
-      console.log("Resposta configurada com sucesso.");
-    })
-    .catch(err => {
-      console.error("Erro ao configurar a resposta:", err);
-    });
-}
-
-function handleOffer(data) {
-  if (!peerConnection) {
-    createPeerConnection();
-  }
-
-  const offer = new RTCSessionDescription({
-    type: 'offer',
-    sdp: data.sdp
+  const answerRef = ref(database, 'answer');
+  onValue(answerRef, (snapshot) => {
+    const answerData = snapshot.val();
+    if (answerData) {
+      handleAnswer(answerData);
+    }
   });
 
-  // Antes de configurar a oferta, verifique o estado de sinalização
-  if (peerConnection.signalingState !== "stable") {
-    console.error("O estado da sinalização não está 'stable', está: ", peerConnection.signalingState);
-    return;
-  }
-
-  peerConnection.setRemoteDescription(offer)
-    .then(() => {
-      // Crie a resposta (answer) apenas após a oferta ser configurada corretamente
-      return peerConnection.createAnswer();
-    })
-    .then(answer => {
-      return peerConnection.setLocalDescription(answer);
-    })
-    .then(() => {
-      const answerData = {
-        sdp: peerConnection.localDescription.sdp,
-        type: peerConnection.localDescription.type
-      };
-      
-      // Envie a resposta de volta para o outro peer
-      set(ref(database, 'answer'), answerData);
-    })
-    .catch(err => {
-      console.error("Erro ao lidar com a oferta:", err);
-    });
-}
-
-function handleAnswer(data) {
-  if (!peerConnection) {
-    console.error("peerConnection não foi inicializada corretamente.");
-    return;
-  }
-
-  console.log("Recebendo resposta: ", data);
-
-  // Verifique se a conexão está no estado adequado para aceitar a resposta
-  if (peerConnection.signalingState !== "have-remote-offer") {
-    console.error("O estado de sinalização não é 'have-remote-offer', está: ", peerConnection.signalingState);
-    return;
-  }
-
-  const answer = new RTCSessionDescription({
-    type: 'answer',
-    sdp: data.sdp
+  const iceCandidatesRef = ref(database, 'iceCandidates');
+  // Usando onChildAdded para escutar mudanças em "iceCandidates"
+  onChildAdded(iceCandidatesRef, (snapshot) => {
+    const candidateData = snapshot.val();
+    if (candidateData) {
+      handleIceCandidate(candidateData);
+    }
   });
 
-  peerConnection.setRemoteDescription(answer)
-    .then(() => {
-      console.log("Resposta configurada com sucesso.");
-    })
-    .catch(err => {
-      console.error("Erro ao configurar a resposta:", err);
-    });
-}
+  // Ação ao clicar no botão para compartilhar a tela
+  document.getElementById('shareScreen').addEventListener('click', captureScreen);
 
+</script>
 
-
-    // Usando onValue() para escutar dados no Firebase
-    const offerRef = ref(database, 'offer');
-    onValue(offerRef, (snapshot) => {
-      const offerData = snapshot.val();
-      if (offerData) {
-        handleOffer(offerData);
-      }
-    });
-
-    const answerRef = ref(database, 'answer');
-    onValue(answerRef, (snapshot) => {
-      const answerData = snapshot.val();
-      if (answerData) {
-        handleAnswer(answerData);
-      }
-    });
-
-    const iceCandidatesRef = ref(database, 'iceCandidates');
-    // Usando onChildAdded para escutar mudanças em "iceCandidates"
-    onChildAdded(iceCandidatesRef, (snapshot) => {
-      const candidateData = snapshot.val();
-      if (candidateData) {
-        handleIceCandidate(candidateData);
-      }
-    });
-
-    // Ação ao clicar no botão para compartilhar a tela
-    document.getElementById('shareScreen').addEventListener('click', captureScreen);
-
-  </script>
 </head>
 <body>
   <h1>Compartilhamento de Tela</h1>
