@@ -60,38 +60,11 @@
       margin-top: 10px;
     }
   </style>
-</head>
-<body>
-  <h1>Controle e Espelhamento de Tela</h1>
-
-  <div id="modeSelection" class="container">
-    <h2>Escolha o Modo</h2>
-    <button onclick="setMode('control')">Controle Remoto</button>
-    <button onclick="setMode('device')">Dispositivo</button>
-  </div>
-
-  <div id="controlContainer" class="container hidden">
-    <h2>Controle Remoto</h2>
-    <button onclick="sendCommand('vibrate')">Vibrar</button>
-    <button onclick="sendCommand('alert')">Mostrar Alerta</button>
-    <button onclick="sendCommand('custom', prompt('Digite uma mensagem:'))">Enviar Mensagem</button>
-    <h2>Espelhamento da Tela do Dispositivo</h2>
-    <video id="remoteScreen" autoplay playsinline></video>
-  </div>
-
-  <div id="deviceContainer" class="container hidden">
-    <h2>Dispositivo</h2>
-    <button onclick="startScreenSharing()">Compartilhar Tela</button>
-    <p>Conectado e aguardando comandos...</p>
-  </div>
-
-  <p id="errorMessage" class="error hidden"></p>
-
   <!-- Incluir o Firebase com módulos ES6 -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js';
     import { getDatabase, ref, set, push, onValue } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js';
-    
+
     // Configuração do Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
@@ -154,19 +127,53 @@
 
     // Funções de controle remoto
     function setupControlMode() {
-      // Implementar lógica de controle remoto aqui
+      // Vibrar
+      const vibrateButton = document.querySelector('button[onclick="sendCommand(\'vibrate\')"]');
+      vibrateButton.addEventListener('click', function() {
+        sendCommand('vibrate');
+        alert("Comando: Vibrar enviado!");
+      });
+
+      // Mostrar alerta
+      const alertButton = document.querySelector('button[onclick="sendCommand(\'alert\')"]');
+      alertButton.addEventListener('click', function() {
+        sendCommand('alert');
+        alert("Comando: Alerta enviado!");
+      });
+
+      // Enviar mensagem personalizada
+      const customMessageButton = document.querySelector('button[onclick="sendCommand(\'custom\', prompt(\'Digite uma mensagem:\'))"]');
+      customMessageButton.addEventListener('click', function() {
+        const message = prompt('Digite uma mensagem:');
+        if (message) {
+          sendCommand('custom', message);
+          alert(`Comando: Mensagem enviada! Texto: ${message}`);
+        }
+      });
+
+      // Iniciar a exibição da tela remota
+      const remoteScreen = document.getElementById('remoteScreen');
+      remoteScreen.style.display = 'block';
     }
 
-    // Funções do dispositivo
+    // Funções do dispositivo (compartilhar tela)
     function setupDeviceMode() {
-      // Implementar lógica de dispositivo aqui
+      // Compartilhar tela
+      const shareButton = document.querySelector('button[onclick="startScreenSharing()"]');
+      shareButton.addEventListener('click', function() {
+        startScreenSharing();
+      });
     }
 
     // Função para compartilhar a tela
     async function startScreenSharing() {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        // Lógica de WebRTC e peerConnection
+        const videoElement = document.getElementById('remoteScreen');
+        videoElement.srcObject = stream;
+
+        // Conectar com o peer remoto via WebRTC (ou outro método de transmissão)
+        console.log("Tela compartilhada!");
       } catch (err) {
         displayError("Erro ao compartilhar tela: " + err.message);
       }
@@ -175,9 +182,35 @@
     // Expor funções no global window
     window.startScreenSharing = startScreenSharing;
     window.sendCommand = sendCommand;
-    window.setMode = setMode;  // Garantir que setMode seja acessível globalmente
 
   </script>
+
+</head>
+<body>
+  <h1>Controle e Espelhamento de Tela</h1>
+
+  <div id="modeSelection" class="container">
+    <h2>Escolha o Modo</h2>
+    <button onclick="setMode('control')">Controle Remoto</button>
+    <button onclick="setMode('device')">Dispositivo</button>
+  </div>
+
+  <div id="controlContainer" class="container hidden">
+    <h2>Controle Remoto</h2>
+    <button onclick="sendCommand('vibrate')">Vibrar</button>
+    <button onclick="sendCommand('alert')">Mostrar Alerta</button>
+    <button onclick="sendCommand('custom', prompt('Digite uma mensagem:'))">Enviar Mensagem</button>
+    <h2>Espelhamento da Tela do Dispositivo</h2>
+    <video id="remoteScreen" autoplay playsinline></video>
+  </div>
+
+  <div id="deviceContainer" class="container hidden">
+    <h2>Dispositivo</h2>
+    <button onclick="startScreenSharing()">Compartilhar Tela</button>
+    <p>Conectado e aguardando comandos...</p>
+  </div>
+
+  <p id="errorMessage" class="error hidden"></p>
 
 </body>
 </html>
