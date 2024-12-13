@@ -1,11 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Controle Remoto e Espelhamento</title>
-  <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -62,38 +61,11 @@
       margin-top: 10px;
     }
   </style>
-</head>
-<body>
-  <h1>Controle e Espelhamento de Tela</h1>
+  <!-- Usando o Firebase como módulos -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js";
 
-  <!-- Escolha do Modo -->
-  <div id="modeSelection" class="container">
-    <h2>Escolha o Modo</h2>
-    <button onclick="setMode('control')">Controle Remoto</button>
-    <button onclick="setMode('device')">Dispositivo</button>
-  </div>
-
-  <!-- Controle Remoto -->
-  <div id="controlContainer" class="container hidden">
-    <h2>Controle Remoto</h2>
-    <button onclick="sendCommand('vibrate')">Vibrar</button>
-    <button onclick="sendCommand('alert')">Mostrar Alerta</button>
-    <button onclick="sendCommand('custom', prompt('Digite uma mensagem:'))">Enviar Mensagem</button>
-    <h2>Espelhamento da Tela do Dispositivo</h2>
-    <video id="remoteScreen" autoplay playsinline></video>
-  </div>
-
-  <!-- Dispositivo -->
-  <div id="deviceContainer" class="container hidden">
-    <h2>Dispositivo</h2>
-    <button onclick="startScreenSharing()">Compartilhar Tela</button>
-    <p>Conectado e aguardando comandos...</p>
-  </div>
-
-  <!-- Mensagem de Erro -->
-  <p id="errorMessage" class="error hidden"></p>
-
-  <script>
     // Configuração do Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
@@ -107,8 +79,8 @@
     };
 
     // Inicializar Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
 
     // Gerar ou recuperar o ID do dispositivo
     let deviceId = localStorage.getItem("deviceId");
@@ -143,28 +115,28 @@
     // Funções de controle remoto
     function setupControlMode() {
       const peerConnection = new RTCPeerConnection();
-      const offerRef = database.ref(`devices/${deviceId}/offer`);
-      const answerRef = database.ref(`devices/${deviceId}/answer`);
-      const iceRef = database.ref(`devices/${deviceId}/ice`);
+      const offerRef = ref(database, `devices/${deviceId}/offer`);
+      const answerRef = ref(database, `devices/${deviceId}/answer`);
+      const iceRef = ref(database, `devices/${deviceId}/ice`);
 
       peerConnection.ontrack = (event) => {
         remoteScreen.srcObject = event.streams[0];
       };
 
-      offerRef.on("value", async (snapshot) => {
+      onValue(offerRef, async (snapshot) => {
         if (snapshot.val()) {
           try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(snapshot.val()));
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
-            answerRef.set(peerConnection.localDescription);
+            set(answerRef, peerConnection.localDescription);
           } catch (err) {
             displayError("Erro ao processar oferta WebRTC: " + err.message);
           }
         }
       });
 
-      iceRef.on("child_added", (snapshot) => {
+      onValue(iceRef, (snapshot) => {
         if (snapshot.val()) {
           peerConnection.addIceCandidate(new RTCIceCandidate(snapshot.val())).catch((err) => {
             displayError("Erro ao adicionar ICE Candidate: " + err.message);
@@ -176,19 +148,19 @@
     // Funções do dispositivo
     function setupDeviceMode() {
       const peerConnection = new RTCPeerConnection();
-      const commandRef = database.ref(`devices/${deviceId}/command`);
-      const offerRef = database.ref(`devices/${deviceId}/offer`);
-      const answerRef = database.ref(`devices/${deviceId}/answer`);
-      const iceRef = database.ref(`devices/${deviceId}/ice`);
+      const commandRef = ref(database, `devices/${deviceId}/command`);
+      const offerRef = ref(database, `devices/${deviceId}/offer`);
+      const answerRef = ref(database, `devices/${deviceId}/answer`);
+      const iceRef = ref(database, `devices/${deviceId}/ice`);
 
-      commandRef.on("value", (snapshot) => {
+      onValue(commandRef, (snapshot) => {
         const data = snapshot.val();
         if (data && data.timestamp > Date.now() - 5000) {
           try {
             if (data.action === "vibrate") navigator.vibrate(200);
             else if (data.action === "alert") alert("Comando recebido!");
             else if (data.action === "custom") alert(`Mensagem: ${data.message}`);
-            commandRef.remove();
+            set(commandRef, null); // Limpar o comando após execução
           } catch (err) {
             displayError("Erro ao executar comando: " + err.message);
           }
@@ -202,16 +174,16 @@
             stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
-            offerRef.set(peerConnection.localDescription);
+            set(offerRef, peerConnection.localDescription);
 
-            answerRef.on("value", async (snapshot) => {
+            onValue(answerRef, async (snapshot) => {
               if (snapshot.val()) {
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(snapshot.val()));
               }
             });
 
             peerConnection.onicecandidate = (event) => {
-              if (event.candidate) iceRef.push(event.candidate.toJSON());
+              if (event.candidate) set(iceRef, event.candidate.toJSON());
             };
           } catch (err) {
             displayError("Erro ao compartilhar tela: " + err.message);
@@ -232,7 +204,7 @@
 
     // Enviar comandos
     function sendCommand(action, message = null) {
-      database.ref(`devices/${deviceId}/command`).set({
+      set(ref(database, `devices/${deviceId}/command`), {
         action,
         message,
         timestamp: Date.now()
@@ -241,5 +213,35 @@
       });
     }
   </script>
+</head>
+<body>
+  <h1>Controle e Espelhamento de Tela</h1>
+
+  <!-- Escolha do Modo -->
+  <div id="modeSelection" class="container">
+    <h2>Escolha o Modo</h2>
+    <button onclick="setMode('control')">Controle Remoto</button>
+    <button onclick="setMode('device')">Dispositivo</button>
+  </div>
+
+  <!-- Controle Remoto -->
+  <div id="controlContainer" class="container hidden">
+    <h2>Controle Remoto</h2>
+    <button onclick="sendCommand('vibrate')">Vibrar</button>
+    <button onclick="sendCommand('alert')">Mostrar Alerta</button>
+    <button onclick="sendCommand('custom', prompt('Digite uma mensagem:'))">Enviar Mensagem</button>
+    <h2>Espelhamento da Tela do Dispositivo</h2>
+    <video id="remoteScreen" autoplay playsinline></video>
+  </div>
+
+  <!-- Dispositivo -->
+  <div id="deviceContainer" class="container hidden">
+    <h2>Dispositivo</h2>
+    <button onclick="startScreenSharing()">Compartilhar Tela</button>
+    <p>Conectado e aguardando comandos...</p>
+  </div>
+
+  <!-- Mensagem de Erro -->
+  <p id="errorMessage" class="error hidden"></p>
 </body>
 </html>
