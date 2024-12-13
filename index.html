@@ -103,8 +103,8 @@
 
     console.log("Recebendo resposta: ", data);
 
-    // Verifique o estado de sinalização antes de configurar a resposta
-    if (peerConnection.signalingState !== "have-remote-offer") {
+    // Verifique se a descrição remota pode ser configurada
+    if (peerConnection.signalingState !== "have-local-offer" && peerConnection.signalingState !== "stable") {
       console.error("Não é possível configurar a resposta, pois o estado da sinalização está errado:", peerConnection.signalingState);
       return;
     }
@@ -210,6 +210,7 @@
   document.getElementById('shareScreen').addEventListener('click', captureScreen);
 
 </script>
+
 
 
 </head>
