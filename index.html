@@ -6,7 +6,7 @@
   <title>Compartilhamento de Tela - WebRTC</title>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-    import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
+    import { getDatabase, ref, set, onValue, onChildAdded } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
     import { getAuth } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
 
     // Configuração do Firebase
@@ -156,7 +156,7 @@
         });
     }
 
-    // Usando onValue em vez de on() para Firebase 9+
+    // Usando onValue() para escutar dados no Firebase
     const offerRef = ref(database, 'offer');
     onValue(offerRef, (snapshot) => {
       const offerData = snapshot.val();
@@ -174,7 +174,8 @@
     });
 
     const iceCandidatesRef = ref(database, 'iceCandidates');
-    iceCandidatesRef.on('child_added', (snapshot) => {
+    // Usando onChildAdded ou onValue para escutar mudanças em "iceCandidates"
+    onChildAdded(iceCandidatesRef, (snapshot) => {
       const candidateData = snapshot.val();
       if (candidateData) {
         handleIceCandidate(candidateData);
