@@ -91,21 +91,31 @@
       };
     }
 
-    // Enviar uma oferta para o outro dispositivo
-    function sendOffer() {
-      peerConnection.createOffer()
-        .then(offer => {
-          return peerConnection.setLocalDescription(offer);
-        })
-        .then(() => {
-          const offerData = {
-            type: 'offer',
-            sdp: peerConnection.localDescription
-          };
-          set(ref(database, 'sinalizacao'), offerData); // Enviar a oferta via Firebase
-        })
-        .catch(err => console.error("Erro ao criar oferta: ", err));
-    }
+// Verifique se a oferta ou resposta não é nula ou inválida antes de definir
+function handleOffer(offer) {
+  if (offer && offer.sdp) {
+    const sessionDescription = new RTCSessionDescription(offer);
+    peerConnection.setRemoteDescription(sessionDescription)
+      .then(() => {
+        peerConnection.createAnswer()
+          .then(answer => {
+            return peerConnection.setLocalDescription(answer);
+          })
+          .then(() => {
+            const answerData = {
+              type: 'answer',
+              sdp: peerConnection.localDescription
+            };
+            set(ref(database, 'sinalizacao'), answerData);
+          })
+          .catch(err => console.error("Erro ao criar resposta: ", err));
+      })
+      .catch(err => console.error("Erro ao configurar a oferta: ", err));
+  } else {
+    console.error("Oferta recebida é inválida ou nula");
+  }
+}
+
 
     // Função para lidar com a resposta (answer) e configurar o par
     function handleAnswer(answer) {
