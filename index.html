@@ -136,9 +136,15 @@ function handleOffer(data) {
     sdp: data.sdp
   });
 
+  // Antes de configurar a oferta, verifique o estado de sinalização
+  if (peerConnection.signalingState !== "stable") {
+    console.error("O estado da sinalização não está 'stable', está: ", peerConnection.signalingState);
+    return;
+  }
+
   peerConnection.setRemoteDescription(offer)
     .then(() => {
-      // Somente crie uma resposta (answer) se a descrição remota for configurada com sucesso
+      // Crie a resposta (answer) apenas após a oferta ser configurada corretamente
       return peerConnection.createAnswer();
     })
     .then(answer => {
@@ -149,13 +155,43 @@ function handleOffer(data) {
         sdp: peerConnection.localDescription.sdp,
         type: peerConnection.localDescription.type
       };
-
+      
+      // Envie a resposta de volta para o outro peer
       set(ref(database, 'answer'), answerData);
     })
     .catch(err => {
       console.error("Erro ao lidar com a oferta:", err);
     });
 }
+
+function handleAnswer(data) {
+  if (!peerConnection) {
+    console.error("peerConnection não foi inicializada corretamente.");
+    return;
+  }
+
+  console.log("Recebendo resposta: ", data);
+
+  // Verifique se a conexão está no estado adequado para aceitar a resposta
+  if (peerConnection.signalingState !== "have-remote-offer") {
+    console.error("O estado de sinalização não é 'have-remote-offer', está: ", peerConnection.signalingState);
+    return;
+  }
+
+  const answer = new RTCSessionDescription({
+    type: 'answer',
+    sdp: data.sdp
+  });
+
+  peerConnection.setRemoteDescription(answer)
+    .then(() => {
+      console.log("Resposta configurada com sucesso.");
+    })
+    .catch(err => {
+      console.error("Erro ao configurar a resposta:", err);
+    });
+}
+
 
 
     // Usando onValue() para escutar dados no Firebase
