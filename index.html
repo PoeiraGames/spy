@@ -4,17 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Compartilhamento de Tela - WebRTC</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js"></script>
-</head>
-<body>
-  <h1>Compartilhamento de Tela</h1>
-  <button id="shareScreen">Compartilhar Tela</button>
-  <video id="localVideo" autoplay muted></video>
-  <video id="remoteVideo" autoplay></video>
+  <!-- Incluindo o Firebase via CDN com suporte a módulos ES -->
+  <script type="module">
+    // O Firebase SDK usa importação de módulos agora
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+    import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
 
-  <script>
+    // Configuração do Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
       authDomain: "sandalias-retro-9f0c6.firebaseapp.com",
@@ -26,9 +23,10 @@
       measurementId: "G-XGVHLX01EB"
     };
 
-    // Inicialize o Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    // Inicializando Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    const auth = getAuth(app);
 
     let localStream = null;
     let peerConnection = null;
@@ -36,7 +34,6 @@
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
 
-    // Função para capturar a tela
     async function captureScreen() {
       try {
         localStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
@@ -46,12 +43,10 @@
           createPeerConnection();
         }
 
-        // Adiciona os tracks da tela ao peerConnection
         localStream.getTracks().forEach(track => {
           peerConnection.addTrack(track, localStream);
         });
 
-        // Cria a oferta (SDP) e envia para o Firebase
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
 
@@ -60,15 +55,12 @@
           type: offer.type
         };
 
-        // Envia a oferta para o Firebase
-        firebase.database().ref('offer').set(offerData);
-
+        set(ref(database, 'offer'), offerData);
       } catch (error) {
         console.error("Erro ao capturar a tela: ", error);
       }
     }
 
-    // Função para criar a peer connection
     function createPeerConnection() {
       if (peerConnection) {
         console.log("peerConnection já foi criada.");
@@ -77,14 +69,12 @@
 
       peerConnection = new RTCPeerConnection({ iceServers });
 
-      // Lidar com os candidatos ICE
       peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
           sendIceCandidate(event.candidate);
         }
       };
 
-      // Lidar com o stream remoto
       peerConnection.ontrack = (event) => {
         remoteVideo.srcObject = event.streams[0];
       };
@@ -92,12 +82,11 @@
       console.log("peerConnection criada com sucesso.");
     }
 
-    // Função para enviar o candidato ICE para o Firebase
     function sendIceCandidate(candidate) {
-      firebase.database().ref('iceCandidates').push(candidate);
+      const iceCandidatesRef = ref(database, 'iceCandidates');
+      iceCandidatesRef.push(candidate);
     }
 
-    // Função para tratar a resposta (answer) recebida
     function handleAnswer(data) {
       if (!peerConnection) {
         console.error("peerConnection não foi inicializada corretamente.");
@@ -122,7 +111,6 @@
         });
     }
 
-    // Função para lidar com os candidatos ICE
     function handleIceCandidate(candidate) {
       if (!peerConnection) {
         console.error("peerConnection não foi inicializada.");
@@ -140,7 +128,6 @@
         });
     }
 
-    // Função para lidar com a oferta recebida do Firebase
     function handleOffer(data) {
       if (!peerConnection) {
         createPeerConnection();
@@ -164,39 +151,45 @@
             type: peerConnection.localDescription.type
           };
 
-          // Envia a resposta (answer) de volta para o Firebase
-          firebase.database().ref('answer').set(answerData);
+          set(ref(database, 'answer'), answerData);
         })
         .catch(err => {
           console.error("Erro ao lidar com a oferta:", err);
         });
     }
 
-    // Lidar com dados do Firebase (oferta, resposta e candidatos ICE)
-    firebase.database().ref('offer').on('value', (snapshot) => {
+    const offerRef = ref(database, 'offer');
+    offerRef.on('value', (snapshot) => {
       const offerData = snapshot.val();
       if (offerData) {
         handleOffer(offerData);
       }
     });
 
-    firebase.database().ref('answer').on('value', (snapshot) => {
+    const answerRef = ref(database, 'answer');
+    answerRef.on('value', (snapshot) => {
       const answerData = snapshot.val();
       if (answerData) {
         handleAnswer(answerData);
       }
     });
 
-    firebase.database().ref('iceCandidates').on('child_added', (snapshot) => {
+    const iceCandidatesRef = ref(database, 'iceCandidates');
+    iceCandidatesRef.on('child_added', (snapshot) => {
       const candidateData = snapshot.val();
       if (candidateData) {
         handleIceCandidate(candidateData);
       }
     });
 
-    // Iniciar o compartilhamento de tela
     document.getElementById('shareScreen').addEventListener('click', captureScreen);
 
   </script>
+</head>
+<body>
+  <h1>Compartilhamento de Tela</h1>
+  <button id="shareScreen">Compartilhar Tela</button>
+  <video id="localVideo" autoplay muted></video>
+  <video id="remoteVideo" autoplay></video>
 </body>
 </html>
