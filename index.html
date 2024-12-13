@@ -61,9 +61,11 @@
     }
   </style>
   <!-- Incluir o Firebase com módulos ES6 -->
-  <script type="module">
+<script type="module">
+  document.addEventListener('DOMContentLoaded', () => {
+    // Configuração do Firebase e inicialização do aplicativo
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js';
-    import { getDatabase, ref, set, push, onValue } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js';
+    import { getDatabase, ref, set } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js';
 
     // Configuração do Firebase
     const firebaseConfig = {
@@ -182,8 +184,9 @@
     // Expor funções no global window
     window.startScreenSharing = startScreenSharing;
     window.sendCommand = sendCommand;
-
-  </script>
+    window.setMode = setMode; // Garanta que setMode esteja acessível globalmente
+  });
+</script>
 
 </head>
 <body>
