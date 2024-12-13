@@ -118,12 +118,18 @@
     }
     console.log("Device ID:", deviceId);
 
-    // Seletores de elementos
+    // Selecione os elementos DOM primeiro, antes de usá-los
     const modeSelection = document.getElementById("modeSelection");
     const controlContainer = document.getElementById("controlContainer");
     const deviceContainer = document.getElementById("deviceContainer");
     const errorMessage = document.getElementById("errorMessage");
     const remoteScreen = document.getElementById("remoteScreen");
+
+    // Função para exibir erro
+    function displayError(message) {
+      errorMessage.textContent = message;
+      errorMessage.classList.remove("hidden");
+    }
 
     // Definir o modo escolhido
     function setMode(mode) {
@@ -143,10 +149,9 @@
     // Funções de controle remoto
     function setupControlMode() {
       const peerConnection = new RTCPeerConnection();
-      const offerRef = firebase.database().ref(`devices/${deviceId}/offer`);
-      const answerRef = firebase.database().ref(`devices/${deviceId}/answer`);
-      const iceRef = firebase.database().ref(`devices/${deviceId}/ice`);
-      let iceCandidates = [];
+      const offerRef = database.ref(`devices/${deviceId}/offer`);
+      const answerRef = database.ref(`devices/${deviceId}/answer`);
+      const iceRef = database.ref(`devices/${deviceId}/ice`);
 
       peerConnection.ontrack = (event) => {
         remoteScreen.srcObject = event.streams[0];
@@ -159,12 +164,6 @@
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             answerRef.set(peerConnection.localDescription);
-
-            iceCandidates.forEach(candidate => {
-              peerConnection.addIceCandidate(candidate).catch((err) => {
-                displayError("Erro ao adicionar ICE Candidate: " + err.message);
-              });
-            });
           } catch (err) {
             displayError("Erro ao processar oferta WebRTC: " + err.message);
           }
@@ -173,14 +172,9 @@
 
       iceRef.on("child_added", (snapshot) => {
         if (snapshot.val()) {
-          const candidate = new RTCIceCandidate(snapshot.val());
-          if (peerConnection.remoteDescription) {
-            peerConnection.addIceCandidate(candidate).catch((err) => {
-              displayError("Erro ao adicionar ICE Candidate: " + err.message);
-            });
-          } else {
-            iceCandidates.push(candidate);
-          }
+          peerConnection.addIceCandidate(new RTCIceCandidate(snapshot.val())).catch((err) => {
+            displayError("Erro ao adicionar ICE Candidate: " + err.message);
+          });
         }
       });
     }
@@ -188,10 +182,10 @@
     // Funções do dispositivo
     function setupDeviceMode() {
       const peerConnection = new RTCPeerConnection();
-      const commandRef = firebase.database().ref(`devices/${deviceId}/command`);
-      const offerRef = firebase.database().ref(`devices/${deviceId}/offer`);
-      const answerRef = firebase.database().ref(`devices/${deviceId}/answer`);
-      const iceRef = firebase.database().ref(`devices/${deviceId}/ice`);
+      const commandRef = database.ref(`devices/${deviceId}/command`);
+      const offerRef = database.ref(`devices/${deviceId}/offer`);
+      const answerRef = database.ref(`devices/${deviceId}/answer`);
+      const iceRef = database.ref(`devices/${deviceId}/ice`);
 
       commandRef.on("value", (snapshot) => {
         const data = snapshot.val();
@@ -232,15 +226,9 @@
       window.startScreenSharing = startScreenSharing;
     }
 
-    // Exibir mensagens de erro
-    function displayError(message) {
-      errorMessage.textContent = message;
-      errorMessage.classList.remove("hidden");
-    }
-
     // Enviar comandos
     function sendCommand(action, message = null) {
-      firebase.database().ref(`devices/${deviceId}/command`).set({
+      database.ref(`devices/${deviceId}/command`).set({
         action,
         message,
         timestamp: Date.now()
