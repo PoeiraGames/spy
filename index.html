@@ -62,131 +62,130 @@
   </style>
   <!-- Incluir o Firebase com módulos ES6 -->
 <script type="module">
-  document.addEventListener('DOMContentLoaded', () => {
-    // Configuração do Firebase e inicialização do aplicativo
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js';
-    import { getDatabase, ref, set } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js';
+  // Configuração do Firebase e inicialização do aplicativo
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js';
+  import { getDatabase, ref, set } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js';
 
-    // Configuração do Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
-      authDomain: "sandalias-retro-9f0c6.firebaseapp.com",
-      databaseURL: "https://sandalias-retro-9f0c6-default-rtdb.firebaseio.com",
-      projectId: "sandalias-retro-9f0c6",
-      storageBucket: "sandalias-retro-9f0c6.appspot.com",
-      messagingSenderId: "786208752798",
-      appId: "1:786208752798:web:193f76bbbf5ac4ef27678f",
-      measurementId: "G-XGVHLX01EB"
-    };
+  // Configuração do Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
+    authDomain: "sandalias-retro-9f0c6.firebaseapp.com",
+    databaseURL: "https://sandalias-retro-9f0c6-default-rtdb.firebaseio.com",
+    projectId: "sandalias-retro-9f0c6",
+    storageBucket: "sandalias-retro-9f0c6.appspot.com",
+    messagingSenderId: "786208752798",
+    appId: "1:786208752798:web:193f76bbbf5ac4ef27678f",
+    measurementId: "G-XGVHLX01EB"
+  };
 
-    // Inicializar Firebase
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+  // Inicializar Firebase
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
 
-    let deviceId = localStorage.getItem("deviceId");
-    if (!deviceId) {
-      deviceId = `device-${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem("deviceId", deviceId);
+  let deviceId = localStorage.getItem("deviceId");
+  if (!deviceId) {
+    deviceId = `device-${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem("deviceId", deviceId);
+  }
+
+  // Função para enviar comando
+  function sendCommand(action, message = null) {
+    set(ref(database, `devices/${deviceId}/command`), {
+      action,
+      message,
+      timestamp: Date.now()
+    }).catch((err) => {
+      displayError("Erro ao enviar comando: " + err.message);
+    });
+  }
+
+  // Função para exibir erro
+  function displayError(message) {
+    const errorMessage = document.getElementById("errorMessage");
+    errorMessage.textContent = message;
+    errorMessage.classList.remove("hidden");
+  }
+
+  // Selecione os elementos DOM primeiro
+  const modeSelection = document.getElementById("modeSelection");
+  const controlContainer = document.getElementById("controlContainer");
+  const deviceContainer = document.getElementById("deviceContainer");
+
+  // Definir o modo escolhido
+  function setMode(mode) {
+    modeSelection.classList.add("hidden");
+
+    if (mode === "control") {
+      controlContainer.classList.remove("hidden");
+      setupControlMode();
+    } else if (mode === "device") {
+      deviceContainer.classList.remove("hidden");
+      setupDeviceMode();
+    } else {
+      displayError("Modo inválido selecionado.");
     }
+  }
 
-    // Função para enviar comando
-    function sendCommand(action, message = null) {
-      set(ref(database, `devices/${deviceId}/command`), {
-        action,
-        message,
-        timestamp: Date.now()
-      }).catch((err) => {
-        displayError("Erro ao enviar comando: " + err.message);
-      });
-    }
+  // Funções de controle remoto
+  function setupControlMode() {
+    // Vibrar
+    const vibrateButton = document.querySelector('button[onclick="sendCommand(\'vibrate\')"]');
+    vibrateButton.addEventListener('click', function() {
+      sendCommand('vibrate');
+      alert("Comando: Vibrar enviado!");
+    });
 
-    // Função para exibir erro
-    function displayError(message) {
-      const errorMessage = document.getElementById("errorMessage");
-      errorMessage.textContent = message;
-      errorMessage.classList.remove("hidden");
-    }
+    // Mostrar alerta
+    const alertButton = document.querySelector('button[onclick="sendCommand(\'alert\')"]');
+    alertButton.addEventListener('click', function() {
+      sendCommand('alert');
+      alert("Comando: Alerta enviado!");
+    });
 
-    // Selecione os elementos DOM primeiro
-    const modeSelection = document.getElementById("modeSelection");
-    const controlContainer = document.getElementById("controlContainer");
-    const deviceContainer = document.getElementById("deviceContainer");
-
-    // Definir o modo escolhido
-    function setMode(mode) {
-      modeSelection.classList.add("hidden");
-
-      if (mode === "control") {
-        controlContainer.classList.remove("hidden");
-        setupControlMode();
-      } else if (mode === "device") {
-        deviceContainer.classList.remove("hidden");
-        setupDeviceMode();
-      } else {
-        displayError("Modo inválido selecionado.");
+    // Enviar mensagem personalizada
+    const customMessageButton = document.querySelector('button[onclick="sendCommand(\'custom\', prompt(\'Digite uma mensagem:\'))"]');
+    customMessageButton.addEventListener('click', function() {
+      const message = prompt('Digite uma mensagem:');
+      if (message) {
+        sendCommand('custom', message);
+        alert(`Comando: Mensagem enviada! Texto: ${message}`);
       }
+    });
+
+    // Iniciar a exibição da tela remota
+    const remoteScreen = document.getElementById('remoteScreen');
+    remoteScreen.style.display = 'block';
+  }
+
+  // Funções do dispositivo (compartilhar tela)
+  function setupDeviceMode() {
+    // Compartilhar tela
+    const shareButton = document.querySelector('button[onclick="startScreenSharing()"]');
+    shareButton.addEventListener('click', function() {
+      startScreenSharing();
+    });
+  }
+
+  // Função para compartilhar a tela
+  async function startScreenSharing() {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const videoElement = document.getElementById('remoteScreen');
+      videoElement.srcObject = stream;
+
+      // Conectar com o peer remoto via WebRTC (ou outro método de transmissão)
+      console.log("Tela compartilhada!");
+    } catch (err) {
+      displayError("Erro ao compartilhar tela: " + err.message);
     }
+  }
 
-    // Funções de controle remoto
-    function setupControlMode() {
-      // Vibrar
-      const vibrateButton = document.querySelector('button[onclick="sendCommand(\'vibrate\')"]');
-      vibrateButton.addEventListener('click', function() {
-        sendCommand('vibrate');
-        alert("Comando: Vibrar enviado!");
-      });
-
-      // Mostrar alerta
-      const alertButton = document.querySelector('button[onclick="sendCommand(\'alert\')"]');
-      alertButton.addEventListener('click', function() {
-        sendCommand('alert');
-        alert("Comando: Alerta enviado!");
-      });
-
-      // Enviar mensagem personalizada
-      const customMessageButton = document.querySelector('button[onclick="sendCommand(\'custom\', prompt(\'Digite uma mensagem:\'))"]');
-      customMessageButton.addEventListener('click', function() {
-        const message = prompt('Digite uma mensagem:');
-        if (message) {
-          sendCommand('custom', message);
-          alert(`Comando: Mensagem enviada! Texto: ${message}`);
-        }
-      });
-
-      // Iniciar a exibição da tela remota
-      const remoteScreen = document.getElementById('remoteScreen');
-      remoteScreen.style.display = 'block';
-    }
-
-    // Funções do dispositivo (compartilhar tela)
-    function setupDeviceMode() {
-      // Compartilhar tela
-      const shareButton = document.querySelector('button[onclick="startScreenSharing()"]');
-      shareButton.addEventListener('click', function() {
-        startScreenSharing();
-      });
-    }
-
-    // Função para compartilhar a tela
-    async function startScreenSharing() {
-      try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        const videoElement = document.getElementById('remoteScreen');
-        videoElement.srcObject = stream;
-
-        // Conectar com o peer remoto via WebRTC (ou outro método de transmissão)
-        console.log("Tela compartilhada!");
-      } catch (err) {
-        displayError("Erro ao compartilhar tela: " + err.message);
-      }
-    }
-
-    // Expor funções no global window
-    window.startScreenSharing = startScreenSharing;
-    window.sendCommand = sendCommand;
-    window.setMode = setMode; // Garanta que setMode esteja acessível globalmente
-  });
+  // Expor funções no global window
+  window.startScreenSharing = startScreenSharing;
+  window.sendCommand = sendCommand;
+  window.setMode = setMode; // Garanta que setMode esteja acessível globalmente
 </script>
+
 
 </head>
 <body>
