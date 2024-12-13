@@ -1,4 +1,4 @@
- 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +9,7 @@
   <!-- Importando os módulos do Firebase -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js';
-    import { getDatabase, ref, set, onValue, child } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js';
+    import { getDatabase, ref, set, onValue, push } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js';
 
     // Configuração do Firebase
     const firebaseConfig = {
@@ -34,105 +34,14 @@
       localStorage.setItem("deviceId", deviceId);
     }
     console.log("Device ID:", deviceId);
-  </script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background-color: #121212;
-      color: #fff;
-    }
-    h1 {
-      margin: 20px 0;
-      color: #ffd700;
-    }
-    .container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 90%;
-      max-width: 800px;
-      background: #1e1e1e;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    }
-    button {
-      background-color: #ffd700;
-      border: none;
-      padding: 10px 20px;
-      font-size: 16px;
-      color: #000;
-      border-radius: 5px;
-      cursor: pointer;
-      margin: 5px;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #ffc107;
-    }
-    video {
-      margin-top: 20px;
-      border: 2px solid #ffd700;
-      width: 100%;
-      max-width: 600px;
-      border-radius: 10px;
-    }
-    .hidden {
-      display: none;
-    }
-    .error {
-      color: #ff3333;
-      font-size: 14px;
-      margin-top: 10px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Controle e Espelhamento de Tela</h1>
+    // Funções de controle remoto
+    window.setMode = function(mode) {
+      const modeSelection = document.getElementById("modeSelection");
+      const controlContainer = document.getElementById("controlContainer");
+      const deviceContainer = document.getElementById("deviceContainer");
+      const errorMessage = document.getElementById("errorMessage");
 
-  <!-- Escolha do Modo -->
-  <div id="modeSelection" class="container">
-    <h2>Escolha o Modo</h2>
-    <button onclick="setMode('control')">Controle Remoto</button>
-    <button onclick="setMode('device')">Dispositivo</button>
-  </div>
-
-  <!-- Controle Remoto -->
-  <div id="controlContainer" class="container hidden">
-    <h2>Controle Remoto</h2>
-    <button onclick="sendCommand('vibrate')">Vibrar</button>
-    <button onclick="sendCommand('alert')">Mostrar Alerta</button>
-    <button onclick="sendCommand('custom', prompt('Digite uma mensagem:'))">Enviar Mensagem</button>
-    <h2>Espelhamento da Tela do Dispositivo</h2>
-    <video id="remoteScreen" autoplay playsinline></video>
-  </div>
-
-  <!-- Dispositivo -->
-  <div id="deviceContainer" class="container hidden">
-    <h2>Dispositivo</h2>
-    <button onclick="startScreenSharing()">Compartilhar Tela</button>
-    <p>Conectado e aguardando comandos...</p>
-  </div>
-
-  <!-- Mensagem de Erro -->
-  <p id="errorMessage" class="error hidden"></p>
-
-  <script>
-    // Variáveis para manipulação do HTML
-    const modeSelection = document.getElementById("modeSelection");
-    const controlContainer = document.getElementById("controlContainer");
-    const deviceContainer = document.getElementById("deviceContainer");
-    const errorMessage = document.getElementById("errorMessage");
-    const remoteScreen = document.getElementById("remoteScreen");
-
-    // Definir o modo escolhido
-    function setMode(mode) {
       modeSelection.classList.add("hidden");
 
       if (mode === "control") {
@@ -144,7 +53,7 @@
       } else {
         displayError("Modo inválido selecionado.");
       }
-    }
+    };
 
     // Funções de controle remoto
     function setupControlMode() {
@@ -154,7 +63,7 @@
       const iceRef = ref(database, `devices/${deviceId}/ice`);
 
       peerConnection.ontrack = (event) => {
-        remoteScreen.srcObject = event.streams[0];
+        document.getElementById('remoteScreen').srcObject = event.streams[0];
       };
 
       onValue(offerRef, async (snapshot) => {
@@ -228,12 +137,13 @@
 
     // Exibir mensagens de erro
     function displayError(message) {
+      const errorMessage = document.getElementById("errorMessage");
       errorMessage.textContent = message;
       errorMessage.classList.remove("hidden");
     }
 
     // Enviar comandos
-    function sendCommand(action, message = null) {
+    window.sendCommand = function(action, message = null) {
       set(ref(database, `devices/${deviceId}/command`), {
         action,
         message,
@@ -241,9 +151,37 @@
       }).catch((err) => {
         displayError("Erro ao enviar comando: " + err.message);
       });
-    }
+    };
   </script>
+</head>
+<body>
+  <h1>Controle e Espelhamento de Tela</h1>
+
+  <!-- Escolha do Modo -->
+  <div id="modeSelection" class="container">
+    <h2>Escolha o Modo</h2>
+    <button onclick="setMode('control')">Controle Remoto</button>
+    <button onclick="setMode('device')">Dispositivo</button>
+  </div>
+
+  <!-- Controle Remoto -->
+  <div id="controlContainer" class="container hidden">
+    <h2>Controle Remoto</h2>
+    <button onclick="sendCommand('vibrate')">Vibrar</button>
+    <button onclick="sendCommand('alert')">Mostrar Alerta</button>
+    <button onclick="sendCommand('custom', prompt('Digite uma mensagem:'))">Enviar Mensagem</button>
+    <h2>Espelhamento da Tela do Dispositivo</h2>
+    <video id="remoteScreen" autoplay playsinline></video>
+  </div>
+
+  <!-- Dispositivo -->
+  <div id="deviceContainer" class="container hidden">
+    <h2>Dispositivo</h2>
+    <button onclick="startScreenSharing()">Compartilhar Tela</button>
+    <p>Conectado e aguardando comandos...</p>
+  </div>
+
+  <!-- Mensagem de Erro -->
+  <p id="errorMessage" class="error hidden"></p>
 </body>
 </html>
-
-
