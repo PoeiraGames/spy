@@ -62,11 +62,9 @@
   </style>
   <!-- Incluir o Firebase com módulos ES6 -->
 <script type="module">
-  // Configuração do Firebase e inicialização do aplicativo
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js';
   import { getDatabase, ref, set } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js';
 
-  // Configuração do Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
     authDomain: "sandalias-retro-9f0c6.firebaseapp.com",
@@ -78,7 +76,6 @@
     measurementId: "G-XGVHLX01EB"
   };
 
-  // Inicializar Firebase
   const app = initializeApp(firebaseConfig);
   const database = getDatabase(app);
 
@@ -88,7 +85,6 @@
     localStorage.setItem("deviceId", deviceId);
   }
 
-  // Função para enviar comando
   function sendCommand(action, message = null) {
     set(ref(database, `devices/${deviceId}/command`), {
       action,
@@ -99,19 +95,21 @@
     });
   }
 
-  // Função para exibir erro
   function displayError(message) {
     const errorMessage = document.getElementById("errorMessage");
     errorMessage.textContent = message;
     errorMessage.classList.remove("hidden");
   }
 
-  // Selecione os elementos DOM primeiro
+  // WebRTC setup
+  let localStream;
+  let peerConnection;
+  let remoteVideo = document.getElementById('remoteScreen');
+
   const modeSelection = document.getElementById("modeSelection");
   const controlContainer = document.getElementById("controlContainer");
   const deviceContainer = document.getElementById("deviceContainer");
 
-  // Definir o modo escolhido
   function setMode(mode) {
     modeSelection.classList.add("hidden");
 
@@ -126,23 +124,19 @@
     }
   }
 
-  // Funções de controle remoto
   function setupControlMode() {
-    // Vibrar
     const vibrateButton = document.querySelector('button[onclick="sendCommand(\'vibrate\')"]');
     vibrateButton.addEventListener('click', function() {
       sendCommand('vibrate');
       alert("Comando: Vibrar enviado!");
     });
 
-    // Mostrar alerta
     const alertButton = document.querySelector('button[onclick="sendCommand(\'alert\')"]');
     alertButton.addEventListener('click', function() {
       sendCommand('alert');
       alert("Comando: Alerta enviado!");
     });
 
-    // Enviar mensagem personalizada
     const customMessageButton = document.querySelector('button[onclick="sendCommand(\'custom\', prompt(\'Digite uma mensagem:\'))"]');
     customMessageButton.addEventListener('click', function() {
       const message = prompt('Digite uma mensagem:');
@@ -152,38 +146,55 @@
       }
     });
 
-    // Iniciar a exibição da tela remota
-    const remoteScreen = document.getElementById('remoteScreen');
-    remoteScreen.style.display = 'block';
-  }
-
-  // Funções do dispositivo (compartilhar tela)
-  function setupDeviceMode() {
-    // Compartilhar tela
-    const shareButton = document.querySelector('button[onclick="startScreenSharing()"]');
-    shareButton.addEventListener('click', function() {
+    // Start remote screen sharing
+    const shareScreenButton = document.querySelector('button[onclick="startScreenSharing()"]');
+    shareScreenButton.addEventListener('click', function() {
       startScreenSharing();
     });
   }
 
-  // Função para compartilhar a tela
+  function setupDeviceMode() {
+    // For device side - receiving commands and showing remote screen
+    const controlButton = document.querySelector('button[onclick="controlRemoteScreen()"]');
+    controlButton.addEventListener('click', function() {
+      controlRemoteScreen();
+    });
+  }
+
   async function startScreenSharing() {
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-      const videoElement = document.getElementById('remoteScreen');
-      videoElement.srcObject = stream;
+      localStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      remoteVideo.srcObject = localStream;
 
-      // Conectar com o peer remoto via WebRTC (ou outro método de transmissão)
-      console.log("Tela compartilhada!");
+      peerConnection = new RTCPeerConnection();
+
+      // Add local stream to WebRTC connection
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+
+      // Setup WebRTC signal and ICE candidates here
+
+      // Create an offer and send it to the remote peer (signaling part)
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      // Assuming signaling is done here
+      sendCommand('startSharing', { offer: offer });
+
     } catch (err) {
       displayError("Erro ao compartilhar tela: " + err.message);
     }
   }
 
-  // Expor funções no global window
+  function controlRemoteScreen() {
+    // Logic for controlling remote screen goes here (sending click events, etc.)
+    sendCommand('control', 'Controle remoto ativado');
+  }
+
   window.startScreenSharing = startScreenSharing;
   window.sendCommand = sendCommand;
-  window.setMode = setMode; // Garanta que setMode esteja acessível globalmente
+  window.setMode = setMode;
 </script>
 
 
