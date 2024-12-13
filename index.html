@@ -3,18 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compartilhamento de Tela em Tempo Real</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js"></script>
-</head>
-<body>
-  <h1>Compartilhamento de Tela entre Dispositivos</h1>
-
-  <button id="startButton">Iniciar Compartilhamento de Tela</button>
-  <div id="remoteVideoContainer"></div>
-
+  <title>Compartilhamento de Tela entre Dispositivos</title>
   <script type="module">
+    // Importação dos módulos do Firebase v9+ com a nova sintaxe modular
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+  
     // Configuração do Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
@@ -28,8 +23,8 @@
     };
 
     // Inicializa o Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const database = firebase.database(app);
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
 
     // Variáveis Globais
     let peerConnection;
@@ -191,5 +186,10 @@
     // Começa a ouvir as mensagens de sinalização
     listenForSignalingMessages();
   </script>
+</head>
+<body>
+  <h1>Compartilhamento de Tela entre Dispositivos</h1>
+  <button id="startButton">Iniciar Compartilhamento de Tela</button>
+  <div id="remoteVideoContainer"></div>
 </body>
 </html>
