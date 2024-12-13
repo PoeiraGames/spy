@@ -57,7 +57,7 @@
 
       // Iniciar a conexão WebRTC
       createPeerConnection();
-      sendOffer();
+      sendOffer(); // Enviar a oferta para o outro dispositivo
     } catch (err) {
       console.error("Erro ao capturar a tela: ", err);
     }
@@ -75,7 +75,7 @@
     // Configurar a manipulação de ICE candidates
     peerConnection.onicecandidate = event => {
       if (event.candidate) {
-        sendIceCandidate(event.candidate);
+        sendIceCandidate(event.candidate); // Enviar o candidato ICE
       }
     };
 
@@ -91,7 +91,7 @@
     };
   }
 
-  // Enviar uma oferta para o outro dispositivo
+  // Função para enviar uma oferta para o outro dispositivo
   function sendOffer() {
     peerConnection.createOffer()
       .then(offer => {
@@ -141,6 +141,25 @@
     set(ref(database, 'sinalizacao'), iceCandidateData);
   }
 
+  // Função para lidar com os candidatos ICE recebidos
+  function handleIceCandidate(candidate) {
+    if (candidate && candidate.candidate) {
+      try {
+        const iceCandidate = new RTCIceCandidate({
+          sdpMid: candidate.sdpMid,
+          sdpMLineIndex: candidate.sdpMLineIndex,
+          candidate: candidate.candidate
+        });
+        peerConnection.addIceCandidate(iceCandidate)
+          .catch(err => console.error("Erro ao adicionar candidato ICE: ", err));
+      } catch (err) {
+        console.error("Erro ao construir o candidato ICE:", err);
+      }
+    } else {
+      console.error("Candidato ICE inválido recebido:", candidate);
+    }
+  }
+
   // Ouvir mensagens de sinalização (oferta, resposta, candidatos ICE)
   function listenForSignalingMessages() {
     const signalRef = ref(database, 'sinalizacao');
@@ -148,9 +167,9 @@
       const data = snapshot.val();
       if (data) {
         if (data.type === 'offer') {
-          handleOffer(data);
+          handleOffer(data); // Lidar com oferta recebida
         } else if (data.type === 'candidate') {
-          handleIceCandidate(data);
+          handleIceCandidate(data); // Lidar com candidato ICE recebido
         }
       }
     });
