@@ -120,7 +120,7 @@
       const iceRef = ref(database, `devices/${deviceId}/ice`);
 
       peerConnection.ontrack = (event) => {
-        remoteScreen.srcObject = event.streams[0];
+        remoteScreen.srcObject = event.streams[0];  // Exibe a tela recebida no controle remoto
       };
 
       onValue(offerRef, async (snapshot) => {
@@ -167,11 +167,13 @@
         }
       });
 
+      // Função para iniciar o compartilhamento de tela
       async function startScreenSharing() {
         if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
           try {
             const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-            stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));
+            stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));  // Adiciona os tracks ao peer connection
+
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
             set(offerRef, peerConnection.localDescription);
@@ -193,7 +195,7 @@
         }
       }
 
-      window.startScreenSharing = startScreenSharing;
+      window.startScreenSharing = startScreenSharing;  // Torna a função acessível para o HTML
     }
 
     // Exibir mensagens de erro
@@ -245,3 +247,5 @@
   <p id="errorMessage" class="error hidden"></p>
 </body>
 </html>
+```
+
