@@ -96,78 +96,67 @@
     }
 
     // Função para lidar com a resposta do peer
-    function handleAnswer(data) {
-      if (!peerConnection) {
-        console.error("peerConnection não foi inicializada corretamente.");
-        return;
-      }
+function handleAnswer(data) {
+  if (!peerConnection) {
+    console.error("peerConnection não foi inicializada corretamente.");
+    return;
+  }
 
-      console.log("Recebendo resposta: ", data);
+  console.log("Recebendo resposta: ", data);
 
-      const answer = new RTCSessionDescription({
-        type: 'answer',
-        sdp: data.sdp
-      });
+  // Verifique se a descrição remota já foi configurada
+  if (peerConnection.signalingState !== "have-remote-offer") {
+    console.error("Não é possível configurar a resposta, pois o estado da sinalização está errado:", peerConnection.signalingState);
+    return;
+  }
 
-      console.log("Configurando a descrição remota com o SDP:", answer.sdp);
+  const answer = new RTCSessionDescription({
+    type: 'answer',
+    sdp: data.sdp
+  });
 
-      peerConnection.setRemoteDescription(answer)
-        .then(() => {
-          console.log("Resposta configurada com sucesso.");
-        })
-        .catch(err => {
-          console.error("Erro ao configurar a resposta:", err);
-        });
-    }
+  console.log("Configurando a descrição remota com o SDP:", answer.sdp);
 
-    // Função para lidar com o candidato ICE recebido
-    function handleIceCandidate(candidate) {
-      if (!peerConnection) {
-        console.error("peerConnection não foi inicializada.");
-        return;
-      }
+  peerConnection.setRemoteDescription(answer)
+    .then(() => {
+      console.log("Resposta configurada com sucesso.");
+    })
+    .catch(err => {
+      console.error("Erro ao configurar a resposta:", err);
+    });
+}
 
-      const iceCandidate = new RTCIceCandidate(candidate);
+function handleOffer(data) {
+  if (!peerConnection) {
+    createPeerConnection();
+  }
 
-      peerConnection.addIceCandidate(iceCandidate)
-        .then(() => {
-          console.log("Candidato ICE adicionado com sucesso.");
-        })
-        .catch(err => {
-          console.error("Erro ao adicionar candidato ICE:", err);
-        });
-    }
+  const offer = new RTCSessionDescription({
+    type: 'offer',
+    sdp: data.sdp
+  });
 
-    // Função para lidar com a oferta recebida
-    function handleOffer(data) {
-      if (!peerConnection) {
-        createPeerConnection();
-      }
+  peerConnection.setRemoteDescription(offer)
+    .then(() => {
+      // Somente crie uma resposta (answer) se a descrição remota for configurada com sucesso
+      return peerConnection.createAnswer();
+    })
+    .then(answer => {
+      return peerConnection.setLocalDescription(answer);
+    })
+    .then(() => {
+      const answerData = {
+        sdp: peerConnection.localDescription.sdp,
+        type: peerConnection.localDescription.type
+      };
 
-      const offer = new RTCSessionDescription({
-        type: 'offer',
-        sdp: data.sdp
-      });
+      set(ref(database, 'answer'), answerData);
+    })
+    .catch(err => {
+      console.error("Erro ao lidar com a oferta:", err);
+    });
+}
 
-      peerConnection.setRemoteDescription(offer)
-        .then(() => {
-          return peerConnection.createAnswer();
-        })
-        .then(answer => {
-          return peerConnection.setLocalDescription(answer);
-        })
-        .then(() => {
-          const answerData = {
-            sdp: peerConnection.localDescription.sdp,
-            type: peerConnection.localDescription.type
-          };
-
-          set(ref(database, 'answer'), answerData);
-        })
-        .catch(err => {
-          console.error("Erro ao lidar com a oferta:", err);
-        });
-    }
 
     // Usando onValue() para escutar dados no Firebase
     const offerRef = ref(database, 'offer');
