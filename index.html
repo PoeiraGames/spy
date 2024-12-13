@@ -60,6 +60,33 @@
       margin-top: 10px;
     }
   </style>
+</head>
+<body>
+  <h1>Controle e Espelhamento de Tela</h1>
+
+  <div id="modeSelection" class="container">
+    <h2>Escolha o Modo</h2>
+    <button onclick="setMode('control')">Controle Remoto</button>
+    <button onclick="setMode('device')">Dispositivo</button>
+  </div>
+
+  <div id="controlContainer" class="container hidden">
+    <h2>Controle Remoto</h2>
+    <button onclick="sendCommand('vibrate')">Vibrar</button>
+    <button onclick="sendCommand('alert')">Mostrar Alerta</button>
+    <button onclick="sendCommand('custom', prompt('Digite uma mensagem:'))">Enviar Mensagem</button>
+    <h2>Espelhamento da Tela do Dispositivo</h2>
+    <video id="remoteScreen" autoplay playsinline></video>
+  </div>
+
+  <div id="deviceContainer" class="container hidden">
+    <h2>Dispositivo</h2>
+    <button onclick="startScreenSharing()">Compartilhar Tela</button>
+    <p>Conectado e aguardando comandos...</p>
+  </div>
+
+  <p id="errorMessage" class="error hidden"></p>
+
   <!-- Incluir o Firebase com módulos ES6 -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js';
@@ -148,35 +175,9 @@
     // Expor funções no global window
     window.startScreenSharing = startScreenSharing;
     window.sendCommand = sendCommand;
+    window.setMode = setMode;  // Garantir que setMode seja acessível globalmente
 
   </script>
-
-</head>
-<body>
-  <h1>Controle e Espelhamento de Tela</h1>
-
-  <div id="modeSelection" class="container">
-    <h2>Escolha o Modo</h2>
-    <button onclick="setMode('control')">Controle Remoto</button>
-    <button onclick="setMode('device')">Dispositivo</button>
-  </div>
-
-  <div id="controlContainer" class="container hidden">
-    <h2>Controle Remoto</h2>
-    <button onclick="sendCommand('vibrate')">Vibrar</button>
-    <button onclick="sendCommand('alert')">Mostrar Alerta</button>
-    <button onclick="sendCommand('custom', prompt('Digite uma mensagem:'))">Enviar Mensagem</button>
-    <h2>Espelhamento da Tela do Dispositivo</h2>
-    <video id="remoteScreen" autoplay playsinline></video>
-  </div>
-
-  <div id="deviceContainer" class="container hidden">
-    <h2>Dispositivo</h2>
-    <button onclick="startScreenSharing()">Compartilhar Tela</button>
-    <p>Conectado e aguardando comandos...</p>
-  </div>
-
-  <p id="errorMessage" class="error hidden"></p>
 
 </body>
 </html>
