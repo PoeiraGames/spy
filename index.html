@@ -6,7 +6,7 @@
   <title>Compartilhamento de Tela - WebRTC</title>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-    import { getDatabase, ref, set, onValue, onChildAdded } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
+    import { getDatabase, ref, set, onValue, onChildAdded, push } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
     import { getAuth } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
 
     // Configuração do Firebase
@@ -32,6 +32,7 @@
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
 
+    // Função para capturar a tela
     async function captureScreen() {
       try {
         localStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
@@ -59,6 +60,7 @@
       }
     }
 
+    // Função para criar a peer connection
     function createPeerConnection() {
       if (peerConnection) {
         console.log("peerConnection já foi criada.");
@@ -80,11 +82,20 @@
       console.log("peerConnection criada com sucesso.");
     }
 
+    // Função para enviar os candidatos ICE
     function sendIceCandidate(candidate) {
       const iceCandidatesRef = ref(database, 'iceCandidates');
-      iceCandidatesRef.push(candidate);
+      // Verificando se a referência para 'iceCandidates' é válida para push
+      push(iceCandidatesRef, candidate)
+        .then(() => {
+          console.log("Candidato ICE enviado com sucesso!");
+        })
+        .catch(err => {
+          console.error("Erro ao enviar candidato ICE: ", err);
+        });
     }
 
+    // Função para lidar com a resposta do peer
     function handleAnswer(data) {
       if (!peerConnection) {
         console.error("peerConnection não foi inicializada corretamente.");
@@ -109,6 +120,7 @@
         });
     }
 
+    // Função para lidar com o candidato ICE recebido
     function handleIceCandidate(candidate) {
       if (!peerConnection) {
         console.error("peerConnection não foi inicializada.");
@@ -126,6 +138,7 @@
         });
     }
 
+    // Função para lidar com a oferta recebida
     function handleOffer(data) {
       if (!peerConnection) {
         createPeerConnection();
@@ -174,7 +187,7 @@
     });
 
     const iceCandidatesRef = ref(database, 'iceCandidates');
-    // Usando onChildAdded ou onValue para escutar mudanças em "iceCandidates"
+    // Usando onChildAdded para escutar mudanças em "iceCandidates"
     onChildAdded(iceCandidatesRef, (snapshot) => {
       const candidateData = snapshot.val();
       if (candidateData) {
@@ -182,6 +195,7 @@
       }
     });
 
+    // Ação ao clicar no botão para compartilhar a tela
     document.getElementById('shareScreen').addEventListener('click', captureScreen);
 
   </script>
