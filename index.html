@@ -97,8 +97,8 @@
     const errorMessage = document.getElementById("errorMessage");
     const remoteScreen = document.getElementById("remoteScreen");
 
-    // Definir o modo escolhido
-    function setMode(mode) {
+    // Função 'setMode' para ser usada no HTML
+    window.setMode = function (mode) {
       modeSelection.classList.add("hidden");
 
       if (mode === "control") {
@@ -110,7 +110,7 @@
       } else {
         displayError("Modo inválido selecionado.");
       }
-    }
+    };
 
     // Funções de controle remoto
     function setupControlMode() {
