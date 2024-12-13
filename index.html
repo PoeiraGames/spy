@@ -1,71 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Controle Remoto e Espelhamento</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background-color: #121212;
-      color: #fff;
-    }
-    h1 {
-      margin: 20px 0;
-      color: #ffd700;
-    }
-    .container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 90%;
-      max-width: 800px;
-      background: #1e1e1e;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    }
-    button {
-      background-color: #ffd700;
-      border: none;
-      padding: 10px 20px;
-      font-size: 16px;
-      color: #000;
-      border-radius: 5px;
-      cursor: pointer;
-      margin: 5px;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #ffc107;
-    }
-    video {
-      margin-top: 20px;
-      border: 2px solid #ffd700;
-      width: 100%;
-      max-width: 600px;
-      border-radius: 10px;
-    }
-    .hidden {
-      display: none;
-    }
-    .error {
-      color: #ff3333;
-      font-size: 14px;
-      margin-top: 10px;
-    }
-  </style>
-  <!-- Incluir o Firebase com módulos ES6 -->
-  <script type="module">
-    // Configuração do Firebase e inicialização do aplicativo
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js';
-    import { getDatabase, ref, set } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-database.js';
-
+  <title>Compartilhamento de Tela em Tempo Real com WebRTC</title>
+  <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js"></script>
+  <script>
     // Configuração do Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
@@ -78,120 +20,149 @@
       measurementId: "G-XGVHLX01EB"
     };
 
-    // Inicializar Firebase
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+    // Inicializando Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const database = firebase.database(app);
 
-    let deviceId = localStorage.getItem("deviceId");
-    if (!deviceId) {
-      deviceId = `device-${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem("deviceId", deviceId);
-    }
+    // Variáveis WebRTC
+    let localStream;
+    let remoteStream;
+    let peerConnection;
+    const configuration = {
+      iceServers: [
+        {
+          urls: 'stun:stun.l.google.com:19302'
+        }
+      ]
+    };
+    const videoArea = document.getElementById("screenArea");
 
-    // Função para enviar comando
-    function sendCommand(action, message = null) {
-      set(ref(database, `devices/${deviceId}/command`), {
-        action,
-        message,
-        timestamp: Date.now()
-      }).catch((err) => {
-        displayError("Erro ao enviar comando: " + err.message);
-      });
-    }
-
-    // Função para exibir erro
-    function displayError(message) {
-      const errorMessage = document.getElementById("errorMessage");
-      errorMessage.textContent = message;
-      errorMessage.classList.remove("hidden");
-    }
-
-    // Selecione os elementos DOM primeiro
-    const modeSelection = document.getElementById("modeSelection");
-    const controlContainer = document.getElementById("controlContainer");
-    const deviceContainer = document.getElementById("deviceContainer");
-
-    // Definir o modo escolhido
-    function setMode(mode) {
-      modeSelection.classList.add("hidden");
-
-      if (mode === "control") {
-        controlContainer.classList.remove("hidden");
-        setupControlMode();
-      } else if (mode === "device") {
-        deviceContainer.classList.remove("hidden");
-        setupDeviceMode();
-      } else {
-        displayError("Modo inválido selecionado.");
-      }
-    }
-
-    // Funções de controle remoto
-    function setupControlMode() {
-      // Setup para capturar a tela e exibi-la no modo controle
-      const shareScreenButton = document.querySelector('button[onclick="startScreenSharing()"]');
-      shareScreenButton.addEventListener('click', function() {
-        startScreenSharing();
-      });
-    }
-
-    async function startScreenSharing() {
+    // Função para capturar a tela
+    async function captureScreen() {
       try {
-        // Captura a tela do usuário
-        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        const videoElement = document.getElementById('remoteScreen'); // O elemento que exibirá a tela compartilhada
-        videoElement.srcObject = stream;
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { mediaSource: "screen" }
+        });
 
-        // Você pode adicionar mais lógica aqui para gerenciar o fluxo de controle remoto, como WebRTC (não implementado aqui)
-        console.log("Tela compartilhada!");
+        localStream = stream;
 
+        // Exibir a captura de tela no dispositivo local
+        const videoElement = document.createElement("video");
+        videoElement.srcObject = localStream;
+        videoElement.play();
+        videoArea.appendChild(videoElement);
+
+        // Iniciar a conexão WebRTC
+        createPeerConnection();
+        sendOffer();
       } catch (err) {
-        displayError("Erro ao compartilhar tela: " + err.message);
+        console.error("Erro ao capturar a tela: ", err);
       }
     }
 
-    // Funções do dispositivo (caso queira expandir mais no futuro)
-    function setupDeviceMode() {
-      // Setup do dispositivo (futuramente pode adicionar outras funcionalidades)
-      const shareButton = document.querySelector('button[onclick="startScreenSharing()"]');
-      shareButton.addEventListener('click', function() {
-        startScreenSharing();
+    // Função para criar uma conexão de pares (Peer-to-Peer)
+    function createPeerConnection() {
+      peerConnection = new RTCPeerConnection(configuration);
+
+      // Enviar o stream local para a conexão
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+
+      // Configurar a manipulação de ICE candidates
+      peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+          sendIceCandidate(event.candidate);
+        }
+      };
+
+      // Manipulação do stream remoto
+      peerConnection.ontrack = event => {
+        if (!remoteStream) {
+          remoteStream = event.streams[0];
+          const videoElement = document.createElement("video");
+          videoElement.srcObject = remoteStream;
+          videoElement.play();
+          document.getElementById("remoteArea").appendChild(videoElement);
+        }
+      };
+    }
+
+    // Enviar uma oferta para o outro dispositivo
+    function sendOffer() {
+      peerConnection.createOffer()
+        .then(offer => {
+          return peerConnection.setLocalDescription(offer);
+        })
+        .then(() => {
+          const offerData = {
+            type: 'offer',
+            sdp: peerConnection.localDescription
+          };
+          database.ref('sinalizacao').set(offerData); // Enviar a oferta via Firebase
+        })
+        .catch(err => console.error("Erro ao criar oferta: ", err));
+    }
+
+    // Função para lidar com a resposta (answer) e configurar o par
+    function handleAnswer(answer) {
+      peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
+        .catch(err => console.error("Erro ao configurar a resposta: ", err));
+    }
+
+    // Função para enviar os candidatos ICE (informações de rede)
+    function sendIceCandidate(candidate) {
+      const iceCandidateData = {
+        type: 'candidate',
+        candidate: candidate
+      };
+      database.ref('sinalizacao').set(iceCandidateData);
+    }
+
+    // Ouvir mensagens de sinalização (oferta, resposta, candidatos ICE)
+    function listenForSignalingMessages() {
+      const signalRef = database.ref('sinalizacao');
+      signalRef.on('value', snapshot => {
+        const data = snapshot.val();
+        if (data) {
+          if (data.type === 'offer') {
+            // Se for uma oferta, responder com uma resposta (answer)
+            peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
+              .then(() => {
+                peerConnection.createAnswer()
+                  .then(answer => {
+                    return peerConnection.setLocalDescription(answer);
+                  })
+                  .then(() => {
+                    const answerData = {
+                      type: 'answer',
+                      sdp: peerConnection.localDescription
+                    };
+                    signalRef.set(answerData);
+                  })
+                  .catch(err => console.error("Erro ao criar resposta: ", err));
+              })
+              .catch(err => console.error("Erro ao configurar a oferta: ", err));
+          } else if (data.type === 'candidate') {
+            // Se for um candidato ICE, adicionar à conexão
+            const candidate = new RTCIceCandidate(data.candidate);
+            peerConnection.addIceCandidate(candidate)
+              .catch(err => console.error("Erro ao adicionar candidato ICE: ", err));
+          }
+        }
       });
     }
 
-    // Expor funções no global window
-    window.startScreenSharing = startScreenSharing;
-    window.sendCommand = sendCommand;
-    window.setMode = setMode;
+    // Iniciar captura da tela ao carregar a página
+    window.onload = function() {
+      captureScreen();
+      listenForSignalingMessages();
+    }
   </script>
-
-
 </head>
 <body>
-  <h1>Controle e Espelhamento de Tela</h1>
-
-  <div id="modeSelection" class="container">
-    <h2>Escolha o Modo</h2>
-<button onclick="setMode('control')">Controle Remoto</button>
-<button onclick="setMode('device')">Dispositivo</button>
-  </div>
-
-  <div id="controlContainer" class="container hidden">
-    <h2>Controle Remoto</h2>
-    <button onclick="sendCommand('vibrate')">Vibrar</button>
-    <button onclick="sendCommand('alert')">Mostrar Alerta</button>
-    <button onclick="sendCommand('custom', prompt('Digite uma mensagem:'))">Enviar Mensagem</button>
-    <h2>Espelhamento da Tela do Dispositivo</h2>
-    <video id="remoteScreen" autoplay playsinline></video>
-  </div>
-
-  <div id="deviceContainer" class="container hidden">
-    <h2>Dispositivo</h2>
-    <button onclick="startScreenSharing()">Compartilhar Tela</button>
-    <p>Conectado e aguardando comandos...</p>
-  </div>
-
-  <p id="errorMessage" class="error hidden"></p>
-
+  <h1>Compartilhamento de Tela em Tempo Real</h1>
+  <div id="screenArea"></div> <!-- Área para exibir a captura de tela local -->
+  <div id="remoteArea"></div> <!-- Área para exibir a captura de tela remota -->
 </body>
 </html>
