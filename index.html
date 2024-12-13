@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -198,14 +197,8 @@
       window.startScreenSharing = startScreenSharing;  // Torna a função acessível para o HTML
     }
 
-    // Exibir mensagens de erro
-    function displayError(message) {
-      errorMessage.textContent = message;
-      errorMessage.classList.remove("hidden");
-    }
-
-    // Enviar comandos
-    function sendCommand(action, message = null) {
+    // Função para enviar comandos
+    window.sendCommand = function (action, message = null) {
       set(ref(database, `devices/${deviceId}/command`), {
         action,
         message,
@@ -213,6 +206,12 @@
       }).catch((err) => {
         displayError("Erro ao enviar comando: " + err.message);
       });
+    };
+
+    // Exibir mensagens de erro
+    function displayError(message) {
+      errorMessage.textContent = message;
+      errorMessage.classList.remove("hidden");
     }
   </script>
 </head>
@@ -247,5 +246,3 @@
   <p id="errorMessage" class="error hidden"></p>
 </body>
 </html>
-```
-
