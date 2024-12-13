@@ -103,7 +103,7 @@
 
     console.log("Recebendo resposta: ", data);
 
-    // Verifique se a descrição remota já foi configurada
+    // Verifique o estado de sinalização antes de configurar a resposta
     if (peerConnection.signalingState !== "have-remote-offer") {
       console.error("Não é possível configurar a resposta, pois o estado da sinalização está errado:", peerConnection.signalingState);
       return;
@@ -144,7 +144,6 @@
 
     peerConnection.setRemoteDescription(offer)
       .then(() => {
-        // Crie a resposta (answer) apenas após a oferta ser configurada corretamente
         return peerConnection.createAnswer();
       })
       .then(answer => {
@@ -161,6 +160,23 @@
       })
       .catch(err => {
         console.error("Erro ao lidar com a oferta:", err);
+      });
+  }
+
+  // Função para lidar com o candidato ICE
+  function handleIceCandidate(candidateData) {
+    if (!peerConnection) {
+      console.error("peerConnection não está disponível.");
+      return;
+    }
+
+    const candidate = new RTCIceCandidate(candidateData);
+    peerConnection.addIceCandidate(candidate)
+      .then(() => {
+        console.log("Candidato ICE adicionado com sucesso.");
+      })
+      .catch(err => {
+        console.error("Erro ao adicionar candidato ICE:", err);
       });
   }
 
@@ -194,6 +210,7 @@
   document.getElementById('shareScreen').addEventListener('click', captureScreen);
 
 </script>
+
 
 </head>
 <body>
