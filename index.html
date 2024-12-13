@@ -4,10 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Compartilhamento de Tela em Tempo Real com WebRTC</title>
-  <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js"></script>
-  <script>
+  <!-- Firebase Modules -->
+  <script type="module">
+    // Importando os módulos do Firebase
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js';
+    import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js';
+    
     // Configuração do Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
@@ -21,8 +24,8 @@
     };
 
     // Inicializando Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const database = firebase.database(app);
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
 
     // Variáveis WebRTC
     let localStream;
@@ -99,7 +102,7 @@
             type: 'offer',
             sdp: peerConnection.localDescription
           };
-          database.ref('sinalizacao').set(offerData); // Enviar a oferta via Firebase
+          set(ref(database, 'sinalizacao'), offerData); // Enviar a oferta via Firebase
         })
         .catch(err => console.error("Erro ao criar oferta: ", err));
     }
@@ -116,13 +119,13 @@
         type: 'candidate',
         candidate: candidate
       };
-      database.ref('sinalizacao').set(iceCandidateData);
+      set(ref(database, 'sinalizacao'), iceCandidateData);
     }
 
     // Ouvir mensagens de sinalização (oferta, resposta, candidatos ICE)
     function listenForSignalingMessages() {
-      const signalRef = database.ref('sinalizacao');
-      signalRef.on('value', snapshot => {
+      const signalRef = ref(database, 'sinalizacao');
+      onValue(signalRef, snapshot => {
         const data = snapshot.val();
         if (data) {
           if (data.type === 'offer') {
@@ -138,7 +141,7 @@
                       type: 'answer',
                       sdp: peerConnection.localDescription
                     };
-                    signalRef.set(answerData);
+                    set(ref(database, 'sinalizacao'), answerData);
                   })
                   .catch(err => console.error("Erro ao criar resposta: ", err));
               })
