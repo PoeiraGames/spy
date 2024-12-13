@@ -3,189 +3,208 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compartilhamento de Tela em Tempo Real com WebRTC</title>
-  <!-- Firebase Modules -->
-<script type="module">
-  // Importando os módulos do Firebase
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js';
-  import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js';
-  import { getAuth } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js';
-  
-  // Configuração do Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
-    authDomain: "sandalias-retro-9f0c6.firebaseapp.com",
-    databaseURL: "https://sandalias-retro-9f0c6-default-rtdb.firebaseio.com",
-    projectId: "sandalias-retro-9f0c6",
-    storageBucket: "sandalias-retro-9f0c6.appspot.com",
-    messagingSenderId: "786208752798",
-    appId: "1:786208752798:web:193f76bbbf5ac4ef27678f",
-    measurementId: "G-XGVHLX01EB"
-  };
-
-  // Inicializando Firebase
-  const app = initializeApp(firebaseConfig);
-  const database = getDatabase(app);
-
-  // Variáveis WebRTC
-  let localStream;
-  let remoteStream;
-  let peerConnection;
-  const configuration = {
-    iceServers: [
-      {
-        urls: 'stun:stun.l.google.com:19302'
-      }
-    ]
-  };
-  const videoArea = document.getElementById("screenArea");
-
-  // Função para capturar a tela
-  async function captureScreen() {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { mediaSource: "screen" }
-      });
-
-      localStream = stream;
-
-      // Exibir a captura de tela no dispositivo local
-      const videoElement = document.createElement("video");
-      videoElement.srcObject = localStream;
-      videoElement.play();
-      videoArea.appendChild(videoElement);
-
-      // Iniciar a conexão WebRTC
-      createPeerConnection();
-      sendOffer(); // Enviar a oferta para o outro dispositivo
-    } catch (err) {
-      console.error("Erro ao capturar a tela: ", err);
+  <title>Compartilhamento de Tela com WebRTC e Firebase</title>
+  <style>
+    #screenArea, #remoteArea {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 10px;
     }
-  }
-
-  // Função para criar uma conexão de pares (Peer-to-Peer)
-  function createPeerConnection() {
-    peerConnection = new RTCPeerConnection(configuration);
-
-    // Enviar o stream local para a conexão
-    localStream.getTracks().forEach(track => {
-      peerConnection.addTrack(track, localStream);
-    });
-
-    // Configurar a manipulação de ICE candidates
-    peerConnection.onicecandidate = event => {
-      if (event.candidate) {
-        sendIceCandidate(event.candidate); // Enviar o candidato ICE
-      }
-    };
-
-    // Manipulação do stream remoto
-    peerConnection.ontrack = event => {
-      if (!remoteStream) {
-        remoteStream = event.streams[0];
-        const videoElement = document.createElement("video");
-        videoElement.srcObject = remoteStream;
-        videoElement.play();
-        document.getElementById("remoteArea").appendChild(videoElement);
-      }
-    };
-  }
-
-  // Função para enviar uma oferta para o outro dispositivo
-  function sendOffer() {
-    peerConnection.createOffer()
-      .then(offer => {
-        return peerConnection.setLocalDescription(offer);
-      })
-      .then(() => {
-        const offerData = {
-          type: 'offer',
-          sdp: peerConnection.localDescription
-        };
-        set(ref(database, 'sinalizacao'), offerData); // Enviar a oferta via Firebase
-      })
-      .catch(err => console.error("Erro ao criar oferta: ", err));
-  }
-
-  // Função para lidar com a resposta (answer) e configurar o par
-  function handleOffer(offer) {
-    if (offer && offer.sdp) {
-      const sessionDescription = new RTCSessionDescription(offer);
-      peerConnection.setRemoteDescription(sessionDescription)
-        .then(() => {
-          peerConnection.createAnswer()
-            .then(answer => {
-              return peerConnection.setLocalDescription(answer);
-            })
-            .then(() => {
-              const answerData = {
-                type: 'answer',
-                sdp: peerConnection.localDescription
-              };
-              set(ref(database, 'sinalizacao'), answerData);
-            })
-            .catch(err => console.error("Erro ao criar resposta: ", err));
-        })
-        .catch(err => console.error("Erro ao configurar a oferta: ", err));
-    } else {
-      console.error("Oferta recebida é inválida ou nula");
+    video {
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 10px;
     }
-  }
-
-  // Função para enviar os candidatos ICE (informações de rede)
-  function sendIceCandidate(candidate) {
-    const iceCandidateData = {
-      type: 'candidate',
-      candidate: candidate
-    };
-    set(ref(database, 'sinalizacao'), iceCandidateData);
-  }
-
-  // Função para lidar com os candidatos ICE recebidos
-  function handleIceCandidate(candidate) {
-    if (candidate && candidate.candidate) {
-      try {
-        const iceCandidate = new RTCIceCandidate({
-          sdpMid: candidate.sdpMid,
-          sdpMLineIndex: candidate.sdpMLineIndex,
-          candidate: candidate.candidate
-        });
-        peerConnection.addIceCandidate(iceCandidate)
-          .catch(err => console.error("Erro ao adicionar candidato ICE: ", err));
-      } catch (err) {
-        console.error("Erro ao construir o candidato ICE:", err);
-      }
-    } else {
-      console.error("Candidato ICE inválido recebido:", candidate);
-    }
-  }
-
-  // Ouvir mensagens de sinalização (oferta, resposta, candidatos ICE)
-  function listenForSignalingMessages() {
-    const signalRef = ref(database, 'sinalizacao');
-    onValue(signalRef, snapshot => {
-      const data = snapshot.val();
-      if (data) {
-        if (data.type === 'offer') {
-          handleOffer(data); // Lidar com oferta recebida
-        } else if (data.type === 'candidate') {
-          handleIceCandidate(data); // Lidar com candidato ICE recebido
-        }
-      }
-    });
-  }
-
-  // Iniciar captura da tela ao carregar a página
-  window.onload = function() {
-    captureScreen();
-    listenForSignalingMessages();
-  }
-</script>
-
+  </style>
 </head>
 <body>
-  <h1>Compartilhamento de Tela em Tempo Real</h1>
-  <div id="screenArea"></div> <!-- Área para exibir a captura de tela local -->
-  <div id="remoteArea"></div> <!-- Área para exibir a captura de tela remota -->
+  <h1>Compartilhar Tela</h1>
+  <div id="screenArea"></div>
+  <div id="remoteArea"></div>
+
+  <script type="module">
+    // Importando os módulos do Firebase
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js';
+    import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js';
+
+    // Configuração do Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAWhfaY2Adp4YJGwvITWTGHP-7zOLNfiGI",
+      authDomain: "sandalias-retro-9f0c6.firebaseapp.com",
+      databaseURL: "https://sandalias-retro-9f0c6-default-rtdb.firebaseio.com",
+      projectId: "sandalias-retro-9f0c6",
+      storageBucket: "sandalias-retro-9f0c6.appspot.com",
+      messagingSenderId: "786208752798",
+      appId: "1:786208752798:web:193f76bbbf5ac4ef27678f",
+      measurementId: "G-XGVHLX01EB"
+    };
+
+    // Inicializando Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    // Variáveis WebRTC
+    let localStream;
+    let remoteStream;
+    let peerConnection;
+    const configuration = {
+      iceServers: [
+        {
+          urls: 'stun:stun.l.google.com:19302'
+        }
+      ]
+    };
+    const videoArea = document.getElementById("screenArea");
+
+    // Função para capturar a tela
+    async function captureScreen() {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { mediaSource: "screen" }
+        });
+
+        localStream = stream;
+
+        // Exibir a captura de tela no dispositivo local
+        const videoElement = document.createElement("video");
+        videoElement.srcObject = localStream;
+        videoElement.play();
+        videoArea.appendChild(videoElement);
+
+        // Iniciar a conexão WebRTC
+        createPeerConnection();
+        sendOffer(); // Enviar a oferta para o outro dispositivo
+      } catch (err) {
+        console.error("Erro ao capturar a tela: ", err);
+      }
+    }
+
+    // Função para criar uma conexão de pares (Peer-to-Peer)
+    function createPeerConnection() {
+      peerConnection = new RTCPeerConnection(configuration);
+
+      // Enviar o stream local para a conexão
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+
+      // Configurar a manipulação de ICE candidates
+      peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+          sendIceCandidate(event.candidate); // Enviar o candidato ICE
+        }
+      };
+
+      // Manipulação do stream remoto
+      peerConnection.ontrack = event => {
+        if (!remoteStream) {
+          remoteStream = event.streams[0];
+          const videoElement = document.createElement("video");
+          videoElement.srcObject = remoteStream;
+          videoElement.play();
+          document.getElementById("remoteArea").appendChild(videoElement);
+        }
+      };
+    }
+
+    // Função para enviar uma oferta para o Firebase
+    function sendOffer() {
+      peerConnection.createOffer()
+        .then(offer => {
+          return peerConnection.setLocalDescription(offer);
+        })
+        .then(() => {
+          const offerData = {
+            type: 'offer',
+            sdp: peerConnection.localDescription.sdp // A SDP da oferta
+          };
+          // Envia a oferta para o Firebase
+          set(ref(database, 'sinalizacao'), offerData);
+        })
+        .catch(err => console.error("Erro ao criar oferta: ", err));
+    }
+
+    // Função para lidar com a resposta (answer) e configurar o par
+    function handleOffer(offer) {
+      if (offer && offer.sdp) {
+        const sessionDescription = new RTCSessionDescription(offer);
+        peerConnection.setRemoteDescription(sessionDescription)
+          .then(() => {
+            peerConnection.createAnswer()
+              .then(answer => {
+                return peerConnection.setLocalDescription(answer);
+              })
+              .then(() => {
+                const answerData = {
+                  type: 'answer',
+                  sdp: peerConnection.localDescription.sdp
+                };
+                set(ref(database, 'sinalizacao'), answerData);
+              })
+              .catch(err => console.error("Erro ao criar resposta: ", err));
+          })
+          .catch(err => console.error("Erro ao configurar a oferta: ", err));
+      } else {
+        console.error("Oferta recebida é inválida ou nula");
+      }
+    }
+
+    // Função para enviar os candidatos ICE (informações de rede)
+    function sendIceCandidate(candidate) {
+      const iceCandidateData = {
+        type: 'candidate',
+        candidate: candidate.candidate,
+        sdpMid: candidate.sdpMid || null,  // Se não tiver, coloca null
+        sdpMLineIndex: candidate.sdpMLineIndex || null // Se não tiver, coloca null
+      };
+      set(ref(database, 'sinalizacao'), iceCandidateData);
+    }
+
+    // Função para lidar com os candidatos ICE recebidos
+    function handleIceCandidate(candidate) {
+      if (candidate && candidate.candidate) {
+        try {
+          const iceCandidate = new RTCIceCandidate({
+            sdpMid: candidate.sdpMid || null,  // Se não tiver, coloca null
+            sdpMLineIndex: candidate.sdpMLineIndex || null,  // Se não tiver, coloca null
+            candidate: candidate.candidate
+          });
+          peerConnection.addIceCandidate(iceCandidate)
+            .catch(err => console.error("Erro ao adicionar candidato ICE: ", err));
+        } catch (err) {
+          console.error("Erro ao construir o candidato ICE:", err);
+        }
+      } else {
+        console.error("Candidato ICE inválido recebido:", candidate);
+      }
+    }
+
+    // Ouvir mensagens de sinalização (oferta, resposta, candidatos ICE)
+    function listenForSignalingMessages() {
+      const signalRef = ref(database, 'sinalizacao');
+      onValue(signalRef, snapshot => {
+        const data = snapshot.val();
+        if (data) {
+          if (data.type === 'offer') {
+            console.log("Oferta recebida:", data);
+            handleOffer(data); // Lidar com a oferta recebida
+          } else if (data.type === 'candidate') {
+            console.log("Candidato ICE recebido:", data);
+            handleIceCandidate(data); // Lidar com o candidato ICE
+          } else {
+            console.log("Tipo de sinalização não reconhecido:", data);
+          }
+        }
+      });
+    }
+
+    // Iniciar captura da tela ao carregar a página
+    window.onload = function() {
+      captureScreen();
+      listenForSignalingMessages();
+    };
+  </script>
 </body>
 </html>
